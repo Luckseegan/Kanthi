@@ -361,6 +361,8 @@ class FileUploaderApp(tk.Tk):
 
         self.agent_file = self.config.get("agent_file", "")
         self.my_file = self.config.get("my_file", "")
+        self.sap_username = self.config.get("sap_username", "")  # Load SAP username
+        self.sap_password = self.config.get("sap_password", "") 
         self.sap_gui_value = self.config.get("sap_gui_value", "0013")
         self.default_sap_gui_value = self.config.get("default_sap_gui_value", "0013")
         self.rates_weights = self.config.get("rates_weights", {
@@ -441,9 +443,19 @@ class FileUploaderApp(tk.Tk):
         for widget in self.sap_output_frame.winfo_children():
             widget.destroy()
 
-        # Create a new Treeview widget
-        self.tree = ttk.Treeview(self.sap_output_frame)
-        self.tree["columns"] = list(df.columns)
+        # Create a new frame to hold the Treeview and scrollbars
+        tree_frame = tk.Frame(self.sap_output_frame)
+        tree_frame.pack(fill="both", expand=False)
+
+        # Create scrollbars
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical")
+        tree_scroll.pack(side="right", fill="y")
+
+        tree_hscroll = ttk.Scrollbar(tree_frame, orient="horizontal")
+        tree_hscroll.pack(side="bottom", fill="x")
+
+        # Create the Treeview widget
+        self.tree = ttk.Treeview(tree_frame, columns=list(df.columns), show="headings", yscrollcommand=tree_scroll.set, xscrollcommand=tree_hscroll.set)
 
         # Configure columns
         self.tree.column("#0", width=0, stretch=tk.NO)  # Hide first empty column
@@ -455,83 +467,85 @@ class FileUploaderApp(tk.Tk):
         for i, row in df.iterrows():
             self.tree.insert("", "end", values=list(row))
 
-        # Attach Treeview to the SAP display frame
-        self.tree.pack(fill="both", expand=True)
+        # Attach Treeview to the scrollbars
+        tree_scroll.config(command=self.tree.yview)
+        tree_hscroll.config(command=self.tree.xview)
 
+        # Pack the Treeview widget into the frame
+        self.tree.pack(fill="both", expand=False)
 
     def create_sap_tab(self):
         """SAP Tab with left (inputs) and right (output table) layout."""
-        
+
         # 🟢 Create PanedWindow to Split Left (Inputs) & Right (Table Output)
         self.sap_paned_window = tk.PanedWindow(self.sap_tab, orient=tk.HORIZONTAL)
         self.sap_paned_window.pack(fill="both", expand=True)
 
-        # 🟢 **Left Section (1/3) → SAP Inputs & Rates/Weights**
-        self.sap_input_frame = tk.Frame(self.sap_paned_window, padx=10, pady=10, width=300)
-        self.sap_input_frame.pack_propagate(False)  # Prevent auto-resizing
+        # 🟢 Left Section (1/3) → SAP Inputs & Rates/Weights
+        self.sap_input_frame = tk.Frame(self.sap_paned_window, padx=10, pady=10, width=350, height=500)
+        self.sap_input_frame.pack_propagate(False)
 
-        # 🔹 **Username**
-        tk.Label(self.sap_input_frame, text="SAP Username:", font=("Arial", 12)).pack(anchor="w", pady=5)
-        self.sap_username_entry = tk.Entry(self.sap_input_frame, font=("Arial", 12))
-        self.sap_username_entry.insert(0, self.sap_username)  # Initial value
+        # 🔹 SAP Username
+        tk.Label(self.sap_input_frame, text="SAP Username:", font=("Arial", 8)).pack(anchor="w", pady=5)
+        self.sap_username_entry = tk.Entry(self.sap_input_frame, font=("Arial", 8))
+        self.sap_username_entry.insert(0, self.sap_username)
         self.sap_username_entry.pack(fill="x", padx=10, pady=5)
 
-        # 🔹 **Password**
-        tk.Label(self.sap_input_frame, text="SAP Password:", font=("Arial", 12)).pack(anchor="w", pady=5)
-        self.sap_password_entry = tk.Entry(self.sap_input_frame, font=("Arial", 12), show="*")
-        self.sap_password_entry.insert(0, self.sap_password)  # Initial value
+        # 🔹 SAP Password
+        tk.Label(self.sap_input_frame, text="SAP Password:", font=("Arial", 8)).pack(anchor="w", pady=5)
+        self.sap_password_entry = tk.Entry(self.sap_input_frame, font=("Arial", 8), show="*")
+        self.sap_password_entry.insert(0, self.sap_password)
         self.sap_password_entry.pack(fill="x", padx=10, pady=5)
 
-        # 🔹 **SAP GUI Value**
-        tk.Label(self.sap_input_frame, text="SAPLMEGUI Value for Bodyline:", font=("Arial", 12)).pack(anchor="w", pady=5)
-        self.sap_gui_entry = tk.Entry(self.sap_input_frame, font=("Arial", 12))
+        # 🔹 SAP GUI Values
+        tk.Label(self.sap_input_frame, text="SAPLMEGUI Value for Bodyline:", font=("Arial", 8)).pack(anchor="w", pady=5)
+        self.sap_gui_entry = tk.Entry(self.sap_input_frame, font=("Arial", 8))
         self.sap_gui_entry.insert(0, self.sap_gui_value)
         self.sap_gui_entry.pack(fill="x", padx=10, pady=5)
 
-        # 🔹 **Default SAP GUI Value**
-        tk.Label(self.sap_input_frame, text="Default SAPLMEGUI Value:", font=("Arial", 12)).pack(anchor="w", pady=5)
-        self.default_sap_gui_entry = tk.Entry(self.sap_input_frame, font=("Arial", 12))
+        tk.Label(self.sap_input_frame, text="Default SAPLMEGUI Value:", font=("Arial", 8)).pack(anchor="w", pady=5)
+        self.default_sap_gui_entry = tk.Entry(self.sap_input_frame, font=("Arial", 8))
         self.default_sap_gui_entry.insert(0, self.default_sap_gui_value)
         self.default_sap_gui_entry.pack(fill="x", padx=10, pady=5)
 
-        # 🟠 **Rates & Weights Section**
-        tk.Label(self.sap_input_frame, text="Rates and Weights:", font=("Arial", 12, "bold")).pack(anchor="w", pady=10)
-        
+        # 🟠 Rates & Weights Section
+        tk.Label(self.sap_input_frame, text="Rates and Weights:", font=("Arial", 8, "bold")).pack(anchor="w", pady=10)
         self.rates_entries = {}
+
         for key, value in self.rates_weights.items():
             frame = tk.Frame(self.sap_input_frame)
             frame.pack(fill="x", padx=10, pady=2)
-            tk.Label(frame, text=key.replace("_", " ").title() + ":", font=("Arial", 12)).pack(side="left")
-            entry = tk.Entry(frame, font=("Arial", 12), width=10)
+            tk.Label(frame, text=key.replace("_", " ").title() + ":", font=("Arial", 8)).pack(side="left")
+            entry = tk.Entry(frame, font=("Arial", 8), width=10)
             entry.insert(0, str(value))
             entry.pack(side="right")
             self.rates_entries[key] = entry
 
-        # 🟢 **Save SAP Config Button**
-        self.save_sap_button = tk.Button(self.sap_input_frame, text="Save SAP Config", font=("Arial", 12),
+        # 🟢 Buttons
+        self.save_sap_button = tk.Button(self.sap_input_frame, text="Save SAP Config", font=("Arial", 8),
                                         command=self.save_sap_config, bg="#4CAF50", fg="white", relief="raised",
-                                        padx=10, pady=5)
-        self.save_sap_button.pack(pady=10, fill="x")
+                                        padx=5, pady=5)
+        self.save_sap_button.pack(pady=5, fill="x")
 
-        # 🟠 **Process SAP Button**
-        self.process_sap_button = tk.Button(self.sap_input_frame, text="Process SAP", font=("Arial", 14, 'bold'),
+        self.process_sap_button = tk.Button(self.sap_input_frame, text="Process SAP", font=("Arial", 10, 'bold'),
                                             command=self.process_sap, bg="#FF9800", fg="white", relief="raised",
-                                            padx=20, pady=10)
-        self.process_sap_button.pack(pady=10, fill="x")
+                                            padx=5, pady=5)
+        self.process_sap_button.pack(pady=5, fill="x")
 
-        # 🟢 **Progress Bar**
+        # 🟢 Progress Bar
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(self.sap_input_frame, variable=self.progress_var, maximum=100, length=200, mode='determinate')
-        self.progress_bar.pack(pady=10, fill="x")
+        self.progress_bar = ttk.Progressbar(self.sap_input_frame, variable=self.progress_var, maximum=100, mode='determinate')
+        self.progress_bar.pack(pady=8, fill="x")
 
         # Add Left Frame to PanedWindow
-        self.sap_paned_window.add(self.sap_input_frame, width=300)
+        self.sap_paned_window.add(self.sap_input_frame, width=350)
 
-        # 🟠 **Right Section (2/3) → Data Table**
-        self.sap_output_frame = tk.Frame(self.sap_paned_window)  # This is the frame for the output
+        # 🟠 Right Section (2/3) → Data Output & Future Work
+        self.sap_output_frame = tk.Frame(self.sap_paned_window, width=650, height=500)
+        self.sap_output_frame.pack_propagate(False)
 
-        # **Treeview Table with Horizontal Scrolling**
-        self.tree_frame = tk.Frame(self.sap_output_frame)
+        # **Top Half - Treeview Table with Scrolling**
+        self.tree_frame = tk.Frame(self.sap_output_frame, height=250)  # Half of the right section
         self.tree_frame.pack(fill="both", expand=True)
 
         self.tree_scroll = ttk.Scrollbar(self.tree_frame, orient="vertical")
@@ -540,37 +554,45 @@ class FileUploaderApp(tk.Tk):
         self.tree_hscroll = ttk.Scrollbar(self.tree_frame, orient="horizontal")
         self.tree_hscroll.pack(side="bottom", fill="x")
 
-        self.tree = ttk.Treeview(self.tree_frame, columns=("SO", "PO #", "Merchant", "Terms", "Remarks", "Mail", "Status"),
-                                show="headings", yscrollcommand=self.tree_scroll.set, xscrollcommand=self.tree_hscroll.set)
+        self.tree = ttk.Treeview(
+            self.tree_frame,
+            show="headings",
+            yscrollcommand=self.tree_scroll.set,
+            xscrollcommand=self.tree_hscroll.set
+        )
 
-        # Set up column headings
-        self.tree.heading("SO", text="SO")
-        self.tree.heading("PO #", text="PO #")
-        self.tree.heading("Merchant", text="Merchant")
-        self.tree.heading("Terms", text="Terms")
-        self.tree.heading("Remarks", text="Remarks")
-        self.tree.heading("Mail", text="Mail")
-        self.tree.heading("Status", text="Status")
-
-        # Set column widths
-        self.tree.column("SO", width=80)
-        self.tree.column("PO #", width=100)
-        self.tree.column("Merchant", width=150)
-        self.tree.column("Terms", width=150)
-        self.tree.column("Remarks", width=200)
-        self.tree.column("Mail", width=150)
-        self.tree.column("Status", width=100)
-
-        # Set up the vertical scrollbar
+        # Attach scrollbars
         self.tree_scroll.config(command=self.tree.yview)
-        # Set up the horizontal scrollbar
         self.tree_hscroll.config(command=self.tree.xview)
 
         # Pack Table
         self.tree.pack(fill="both", expand=True)
 
+        # **Bottom Half - Reserved for Future Work**
+        self.future_work_frame = tk.Frame(self.sap_output_frame, height=250, bg="lightgray")  # Placeholder
+        self.future_work_frame.pack(fill="both", expand=True)
+
+        # Add Excel update button in the bottom frame
+        self.update_button = tk.Button(self.future_work_frame, text="Update Excel", command=self.update_excel)
+        self.update_button.pack(pady=20)
+
         # Add Output Frame to PanedWindow
-        self.sap_paned_window.add(self.sap_output_frame, width=600)
+        self.sap_paned_window.add(self.sap_output_frame, width=650)
+
+        # Function to display DataFrame dynamically
+    
+    def display_dataframe(self, df):
+            """Dynamically update Treeview table with DataFrame contents."""
+            # Clear previous columns & data
+            self.tree["columns"] = list(df.columns)
+            
+            for col in df.columns:
+                self.tree.heading(col, text=col)
+                self.tree.column(col, width=100)  # Default width, can be adjusted
+
+            # Insert data
+            for _, row in df.iterrows():
+                self.tree.insert("", "end", values=list(row))
 
 
     def save_sap_config(self):
@@ -770,17 +792,72 @@ class FileUploaderApp(tk.Tk):
                 self.sap_tab.update_idletasks()  # Refresh UI to show progress
             
             # Combine processed data
-            df_with_merchant_and_terms = pd.concat(processed_rows, ignore_index=True)
+            self.df_with_merchant_and_terms = pd.concat(processed_rows, ignore_index=True)
             
             # Select Relevant Columns
             relevant_columns = [0, 3, 5, 6, 7, 12, 13, 14, 17, 18, 28, 29, 30]
-            df_display = df_with_merchant_and_terms.iloc[:, relevant_columns]
+            df_display = self.df_with_merchant_and_terms.iloc[:, relevant_columns]
 
             # Display the result in Treeview
             self.update_sap_treeview(df_display)
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during SAP processing: {e}")
+
+    def update_excel(self):
+        """Update the Excel sheet when the button is pressed."""
+        if self.df_with_merchant_and_terms.empty:
+            show_popup("No processed data available to update the Excel sheet.")
+            return
+        if is_file_open(self.agent_file):
+            show_popup(f"Please close the file '{os.path.basename(self.agent_file)}' and try again.")
+            return
+
+        if is_file_open(self.my_file):
+            show_popup(f"Please close the file '{os.path.basename(self.my_file)}' and try again.")
+            return
+        
+
+        # Load the workbook and the sheet
+        wb = load_workbook(self.my_file)
+        ws = wb[self.latest_sheet]
+
+        # Read the main sheet into a DataFrame
+        df = pd.read_excel(self.my_file, sheet_name=self.latest_sheet)
+
+        # Ensure df_with_merchant_and_terms contains only the rows to be updated
+        for index, row in self.df_with_merchant_and_terms.iterrows():
+            # Find the row in the main dataframe that needs to be updated (matching on the first column, 'SO')
+            matching_row = df[df.iloc[:, 0] == row.iloc[0]]  # Matching based on first column (SO)
+
+            if not matching_row.empty:
+                for col in self.df_with_merchant_and_terms.columns:
+                    if col in df.columns:
+                        # Find the Excel row number
+                        excel_row_index = df.index[df.iloc[:, 0] == row.iloc[0]].tolist()[0] + 2  # Adjust for header row
+                        
+                        # Find the Excel column letter
+                        excel_col_index = df.columns.get_loc(col) + 1
+                        excel_col_letter = get_column_letter(excel_col_index)
+
+                        # Get the value to update
+                        new_value = row[col]
+
+                        # Preserve date format if the column contains dates
+                        if pd.api.types.is_datetime64_any_dtype(df[col]):
+                            ws[f"{excel_col_letter}{excel_row_index}"].value = new_value  # Update value
+                            ws[f"{excel_col_letter}{excel_row_index}"].number_format = "DD-MMM-YY"  # Apply short date format
+                        else:
+                            ws[f"{excel_col_letter}{excel_row_index}"].value = new_value  # Update non-date values
+
+        # Preserve filters (reapply if they existed)
+        if ws.auto_filter.ref:
+            ws.auto_filter.ref = ws.auto_filter.ref
+
+        # Save the workbook (preserving formatting, date formats, and filters)
+        wb.save(self.my_file)
+
+        print("Excel file updated successfully while preserving short date format.")
 
 
 
